@@ -1,5 +1,9 @@
+// Copyright (c) .NET Foundation. All rights reserved.
+// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+
 using System;
 using System.Threading;
+using Microsoft.Framework.Caching;
 using Microsoft.Framework.Caching.Memory;
 
 namespace MemoryCacheSample
@@ -18,8 +22,7 @@ namespace MemoryCacheSample
 
             // Create / Overwrite
             result = cache.Set(key, newObject);
-            result = cache.Set(key, context => new object());
-            result = cache.Set(key, state, context => new object());
+            result = cache.Set(key, new object());
 
             // Retrieve, null if not found
             result = cache.Get(key);
@@ -30,89 +33,73 @@ namespace MemoryCacheSample
             // Delete
             cache.Remove(key);
 
-            // Conditional operations:
-
-            // Retrieve / Create when we want to lazily create the object.
-            result = cache.GetOrSet(key, context => new object());
-
-            // Retrieve / Create when we want to lazily create the object.
-            result = cache.GetOrSet(key, state, context => new object());
-
             // Cache entry configuration:
 
             // Stays in the cache as long as possible
-            result = cache.GetOrSet(key, state, context =>
-            {
-                context.SetPriority(CachePreservationPriority.NeverRemove);
-                return new object();
-            });
+            result = cache.Set(
+                key,
+                new object(),
+                new CacheEntryOptions().SetPriority(CacheItemPriority.NeverRemove));
 
             // Automatically remove if not accessed in the given time
-            result = cache.GetOrSet(key, state, context =>
-            {
-                context.SetSlidingExpiration(TimeSpan.FromMinutes(5));
-                return new object();
-            });
+            result = cache.Set(
+                key,
+                new object(),
+                new CacheEntryOptions().SetSlidingExpiration(TimeSpan.FromMinutes(5)));
 
             // Automatically remove at a certain time
-            result = cache.GetOrSet(key, state, context =>
-            {
-                context.SetAbsoluteExpiration(new DateTime(2014, 12, 31));
-                // or relative:
-                // context.SetAbsoluteExpiration(TimeSpan.FromMinutes(5));
-                return new object();
-            });
+            result = cache.Set(
+                key,
+                new object(),
+                new CacheEntryOptions().SetAbsoluteExpiration(new DateTime(2014, 12, 31)));
 
             // Automatically remove if not accessed in the given time
             // Automatically remove at a certain time (if it lives that long)
-            result = cache.GetOrSet(key, state, context =>
-            {
-                context.SetSlidingExpiration(TimeSpan.FromMinutes(5));
-
-                context.SetAbsoluteExpiration(new DateTime(2014, 12, 31));
-                // or relative:
-                // context.SetAbsoluteExpiration(TimeSpan.FromMinutes(5));
-                return new object();
-            });
+            result = cache.Set(
+                key,
+                new object(),
+                new CacheEntryOptions()
+                .SetSlidingExpiration(TimeSpan.FromMinutes(5))
+                .SetAbsoluteExpiration(new DateTime(2014, 12, 31)));
 
             // Callback when evicted
-            result = cache.GetOrSet(key, state, context =>
-            {
-                context.RegisterPostEvictionCallback((echoKey, value, reason, substate) =>
-                    Console.WriteLine(echoKey + ": '" + value + "' was evicted due to " + reason), state: null);
-                return new object();
-            });
+            result = cache.Set(
+                key,
+                new object(),
+                new CacheEntryOptions()
+                .RegisterPostEvictionCallback((echoKey, value, reason, substate) =>
+                    Console.WriteLine(echoKey + ": '" + value + "' was evicted due to " + reason), state: null));
 
             // Remove on trigger
             var cts = new CancellationTokenSource();
-            result = cache.GetOrSet(key, state, context =>
-            {
-                context.AddExpirationTrigger(new CancellationTokenTrigger(cts.Token));
-                return new object();
-            });
+            result = cache.Set(
+                key,
+                new object(),
+                new CacheEntryOptions()
+                .AddExpirationTrigger(new CancellationTokenTrigger(cts.Token)));
 
-            result = cache.GetOrSet<object>(key, context =>
-            {
-                var link = new EntryLink();
+            //result = cache.GetOrSet<object>(key, context =>
+            //{
+            //    var link = new EntryLink();
 
-                var inner1 = cache.GetOrSet("subkey1", link, subContext =>
-                {
-                    return "SubValue1";
-                });
+            //    var inner1 = cache.GetOrSet("subkey1", link, subContext =>
+            //    {
+            //        return "SubValue1";
+            //    });
 
-                string inner2;
-                using (link.FlowContext())
-                {
-                    inner2 = cache.GetOrSet("subkey2", subContext =>
-                    {
-                        return "SubValue2";
-                    });
-                }
+            //    string inner2;
+            //    using (link.FlowContext())
+            //    {
+            //        inner2 = cache.GetOrSet("subkey2", subContext =>
+            //        {
+            //            return "SubValue2";
+            //        });
+            //    }
 
-                context.AddEntryLink(link);
+            //    context.AddEntryLink(link);
 
-                return inner1 + inner2;
-            });
+            //    return inner1 + inner2;
+            //});
         }
     }
 }

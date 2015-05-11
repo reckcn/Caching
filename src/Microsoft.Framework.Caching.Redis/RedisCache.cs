@@ -3,7 +3,9 @@
 
 using System;
 using System.IO;
+using System.Threading.Tasks;
 using Microsoft.Framework.Caching.Distributed;
+using Microsoft.Framework.Caching.Memory.Infrastructure;
 using Microsoft.Framework.Internal;
 using Microsoft.Framework.OptionsModel;
 using StackExchange.Redis;
@@ -34,46 +36,57 @@ namespace Microsoft.Framework.Caching.Redis
 
         private readonly RedisCacheOptions _options;
         private readonly string _instance;
+        private readonly ISystemClock _clock;
 
         public RedisCache([NotNull] IOptions<RedisCacheOptions> optionsAccessor)
         {
             _options = optionsAccessor.Options;
+            _clock = _options.Clock ?? new SystemClock();
+
             // This allows partitioning a single backend cache for use with multiple apps/services.
             _instance = _options.InstanceName ?? string.Empty;
         }
 
-        public void Connect()
+        public byte[] Get(string key)
         {
-            if (_connection == null)
-            {
-                _connection = ConnectionMultiplexer.Connect(_options.Configuration);
-                _cache = _connection.GetDatabase();
-            }
+            return GetAndRefresh(key, getData: true);
         }
 
-        public Stream Set([NotNull] string key, object state, [NotNull] Action<ICacheContext> create)
+        public Task<byte[]> GetAsync(string key)
         {
-            Connect();
-
-            var context = new CacheContext(key) { State = state };
-            create(context);
-            var value = context.GetBytes();
-            var result = _cache.ScriptEvaluate(SetScript, new RedisKey[] { _instance + key },
-                new RedisValue[]
-                {
-                    context.AbsoluteExpiration?.Ticks ?? NotPresent,
-                    context.SlidingExpiration?.Ticks ?? NotPresent,
-                    context.GetExpirationInSeconds() ?? NotPresent,
-                    value
-                });
-            // TODO: Error handling
-            return new MemoryStream(value, writable: false);
+            throw new NotImplementedException();
         }
 
-        public bool TryGetValue([NotNull] string key, out Stream value)
+        public bool TryGetValue(string key, out byte[] value)
         {
             value = GetAndRefresh(key, getData: true);
             return value != null;
+        }
+
+        public Task<bool> TryGetValueAsync(string key, out byte[] value)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Set(string key, byte[] value, CacheEntryOptions options)
+        {
+            Connect();
+
+            var creationTime = _clock.UtcNow;
+
+            var result = _cache.ScriptEvaluate(SetScript, new RedisKey[] { _instance + key },
+                new RedisValue[]
+                {
+                        options.AbsoluteExpiration?.Ticks ?? NotPresent,
+                        options.SlidingExpiration?.Ticks ?? NotPresent,
+                        GetExpirationInSeconds(creationTime, options) ?? NotPresent,
+                        value
+                });
+        }
+
+        public Task SetAsync(string key, byte[] value, CacheEntryOptions options)
+        {
+            throw new NotImplementedException();
         }
 
         public void Refresh([NotNull] string key)
@@ -81,7 +94,7 @@ namespace Microsoft.Framework.Caching.Redis
             var ignored = GetAndRefresh(key, getData: false);
         }
 
-        private Stream GetAndRefresh(string key, bool getData)
+        private byte[] GetAndRefresh(string key, bool getData)
         {
             Connect();
 
@@ -108,9 +121,26 @@ namespace Microsoft.Framework.Caching.Redis
             }
             if (results.Length >= 3 && results[2].HasValue)
             {
-                return new MemoryStream(results[2], writable: false);
+                return results[2];
             }
             return null;
+        }
+
+        public void Remove([NotNull] string key)
+        {
+            Connect();
+
+            _cache.KeyDelete(_instance + key);
+            // TODO: Error handling
+        }
+
+        private void Connect()
+        {
+            if (_connection == null)
+            {
+                _connection = ConnectionMultiplexer.Connect(_options.Configuration);
+                _cache = _connection.GetDatabase();
+            }
         }
 
         private void MapMetadata(RedisValue[] results, out DateTimeOffset? absoluteExpiration, out TimeSpan? slidingExpiration)
@@ -149,12 +179,23 @@ namespace Microsoft.Framework.Caching.Redis
             }
         }
 
-        public void Remove([NotNull] string key)
+        private static long? GetExpirationInSeconds(DateTimeOffset creationTime, CacheEntryOptions options)
         {
-            Connect();
-
-            _cache.KeyDelete(_instance + key);
-            // TODO: Error handling
+            if (options.AbsoluteExpiration.HasValue && options.SlidingExpiration.HasValue)
+            {
+                return (long)Math.Min(
+                    (options.AbsoluteExpiration.Value - creationTime).TotalSeconds,
+                    options.SlidingExpiration.Value.TotalSeconds);
+            }
+            else if (options.AbsoluteExpiration.HasValue)
+            {
+                return (long)(options.AbsoluteExpiration.Value - creationTime).TotalSeconds;
+            }
+            else if (options.SlidingExpiration.HasValue)
+            {
+                return (long)options.SlidingExpiration.Value.TotalSeconds;
+            }
+            return null;
         }
     }
 }

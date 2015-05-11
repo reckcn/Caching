@@ -10,29 +10,39 @@ using System.Threading.Tasks;
 
 namespace Microsoft.Framework.Caching.Memory
 {
-    using EvictionCallback = Action<string, object, EvictionReason, object>;
-
     internal class CacheEntry
     {
         private static readonly Action<object> ExpirationCallback = TriggerExpired;
 
         private readonly Action<CacheEntry> _notifyCacheOfExpiration;
 
-        internal CacheEntry(CacheSetContext context, object value, Action<CacheEntry> notifyCacheOfExpiration)
+        private readonly DateTimeOffset? _absoluteExpiration;
+
+        internal CacheEntry(
+            string key,
+            object value,
+            DateTimeOffset utcNow,
+            DateTimeOffset? absoluteExpiration,
+            CacheEntryOptions options,
+            Action<CacheEntry> notifyCacheOfExpiration)
         {
-            Context = context;
+            Key = key;
             Value = value;
+            LastAccessed = utcNow;
+            Options = options;
             _notifyCacheOfExpiration = notifyCacheOfExpiration;
-            LastAccessed = context.CreationTime;
+            _absoluteExpiration = absoluteExpiration;
         }
 
-        internal CacheSetContext Context { get; private set; }
+        internal CacheEntryOptions Options { get; private set; }
+
+        internal string Key { get; private set; }
+
+        internal object Value { get; private set; }
 
         private bool IsExpired { get; set; }
 
         internal EvictionReason EvictionReason { get; private set; }
-
-        internal object Value { get; private set; }
 
         internal IList<IDisposable> TriggerRegistrations { get; set; }
 
@@ -55,14 +65,14 @@ namespace Microsoft.Framework.Caching.Memory
 
         private bool CheckForExpiredTime(DateTimeOffset now)
         {
-            if (Context.AbsoluteExpiration.HasValue && Context.AbsoluteExpiration.Value <= now)
+            if (_absoluteExpiration != null && _absoluteExpiration.Value <= now)
             {
                 SetExpired(EvictionReason.Expired);
                 return true;
             }
 
-            if (Context.SlidingExpiration.HasValue
-                && (now - LastAccessed) >= Context.SlidingExpiration)
+            if (Options.SlidingExpiration.HasValue
+                && (now - LastAccessed) >= Options.SlidingExpiration)
             {
                 SetExpired(EvictionReason.Expired);
                 return true;
@@ -73,7 +83,7 @@ namespace Microsoft.Framework.Caching.Memory
 
         internal bool CheckForExpiredTriggers()
         {
-            var triggers = Context.Triggers;
+            var triggers = Options.Triggers;
             if (triggers != null)
             {
                 for (int i = 0; i < triggers.Count; i++)
@@ -93,7 +103,7 @@ namespace Microsoft.Framework.Caching.Memory
         // This may result in some registrations not getting disposed.
         internal void AttachTriggers()
         {
-            var triggers = Context.Triggers;
+            var triggers = Options.Triggers;
             if (triggers != null)
             {
                 for (int i = 0; i < triggers.Count; i++)
@@ -137,8 +147,8 @@ namespace Microsoft.Framework.Caching.Memory
         // TODO: Ensure a thread safe way to prevent these from being invoked more than once;
         internal void InvokeEvictionCallbacks()
         {
-            var callbacks = Context.PostEvictionCallbacks;
-            Context.PostEvictionCallbacks = null;
+            var callbacks = Options.PostEvictionCallbacks;
+            Options.PostEvictionCallbacks = null;
             if (callbacks != null)
             {
 #if NET45 || DNX451 || DNXCORE50
@@ -151,16 +161,17 @@ namespace Microsoft.Framework.Caching.Memory
 
         private void InvokeCallbacks(object state)
         {
-            var callbacks = (IList<Tuple<EvictionCallback, object>>)state;
-            for (int i = 0; i < callbacks.Count; i++)
+            var callbackRegistrations = (IList<PostEvictionCallbackRegistration>)state;
+            for (int i = 0; i < callbackRegistrations.Count; i++)
             {
-                var callbackPair = callbacks[i];
-                var callback = callbackPair.Item1;
-                var callbackState = callbackPair.Item2;
+                var registration = callbackRegistrations[i];
 
                 try
                 {
-                    callback(Context.Key, Value, EvictionReason, callbackState);
+                    if (registration.EvictionCallback != null)
+                    {
+                        registration.EvictionCallback(Key, Value, EvictionReason, registration.State);
+                    }
                 }
                 catch (Exception)
                 {

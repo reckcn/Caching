@@ -31,11 +31,10 @@ namespace Microsoft.Framework.Caching.Redis
             var value = new byte[1];
             string key = "myKey";
 
-            var result = cache.Set(key, value);
-            Assert.Equal(value, result.ReadAllBytes());
+            cache.Set(key, value);
 
-            result = cache.Get(key);
-            Assert.Equal(value, result.ReadAllBytes());
+            var result = cache.Get(key);
+            Assert.Equal(value, result);
         }
 
         [Fact]
@@ -46,31 +45,13 @@ namespace Microsoft.Framework.Caching.Redis
             string key1 = "myKey";
             string key2 = "Mykey";
 
-            var result = cache.Set(key1, value);
-            Assert.Equal(value, result.ReadAllBytes());
+            cache.Set(key1, value);
 
-            result = cache.Get(key1);
-            Assert.Equal(value, result.ReadAllBytes());
+            var result = cache.Get(key1);
+            Assert.Equal(value, result);
 
             result = cache.Get(key2);
             Assert.Null(result);
-        }
-
-        [Fact]
-        public void GetOrSetDoesNotOverwrite()
-        {
-            var cache = RedisTestConfig.CreateCacheInstance(GetType().Name);
-            var value1 = new byte[1] { 1 };
-            var value2 = new byte[1] { 2 };
-            string key = "myKey";
-
-            // Assigned
-            var result = cache.Set(key, value1);
-            Assert.Equal(value1, result.ReadAllBytes());
-
-            // Retrieved
-            result = cache.GetOrSet(key, value2);
-            Assert.Equal(value1, result.ReadAllBytes());
         }
 
         [Fact]
@@ -80,15 +61,14 @@ namespace Microsoft.Framework.Caching.Redis
             var value1 = new byte[1] { 1 };
             string key = "myKey";
 
-            var result = cache.Set(key, value1);
-            Assert.Equal(value1, result.ReadAllBytes());
+            cache.Set(key, value1);
+            var result = cache.Get(key);
+            Assert.Equal(value1, result);
 
             var value2 = new byte[1] { 2 };
-            result = cache.Set(key, value2);
-            Assert.Equal(value2, result.ReadAllBytes());
-
+            cache.Set(key, value2);
             result = cache.Get(key);
-            Assert.Equal(value2, result.ReadAllBytes());
+            Assert.Equal(value2, result);
         }
 
         [Fact]
@@ -98,8 +78,9 @@ namespace Microsoft.Framework.Caching.Redis
             var value = new byte[1];
             string key = "myKey";
 
-            var result = cache.Set(key, value);
-            Assert.Equal(value, result.ReadAllBytes());
+            cache.Set(key, value);
+            var result = cache.Get(key);
+            Assert.Equal(value, result);
 
             cache.Remove(key);
             result = cache.Get(key);

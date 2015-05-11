@@ -11,7 +11,7 @@ namespace Microsoft.Framework.Caching.Memory
     {
         public ISystemClock Clock { get; set; }
 
-        public bool ListenForMemoryPressure { get; set; } = true;
+        public bool CompactOnMemoryPressure { get; set; } = true;
 
         public TimeSpan ExpirationScanFrequency { get; set; } = TimeSpan.FromMinutes(1);
 

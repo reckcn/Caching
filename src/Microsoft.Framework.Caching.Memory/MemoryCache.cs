@@ -38,7 +38,7 @@ namespace Microsoft.Framework.Caching.Memory
             _entryLock = new ReaderWriterLockSlim();
             _entryExpirationNotification = EntryExpired;
             _clock = options.Clock ?? new SystemClock();
-            if (options.ListenForMemoryPressure)
+            if (options.CompactOnMemoryPressure)
             {
                 GcNotification.Register(DoMemoryPreassureCollection, state: null);
             }
@@ -62,27 +62,51 @@ namespace Microsoft.Framework.Caching.Memory
             get { return _entries.Count; }
         }
 
-        public object Set([NotNull] string key, IEntryLink link, object state, [NotNull] Func<ICacheSetContext, object> create)
+        public object Set([NotNull] string key, object value, IEntryLink link, CacheEntryOptions cacheEntryOptions)
         {
             CheckDisposed();
             CacheEntry priorEntry = null;
-            var now = _clock.UtcNow;
-            var context = new CacheSetContext(key) { State = state, CreationTime = now };
-            object value = create(context);
-            var entry = new CacheEntry(context, value, _entryExpirationNotification);
+            var utcNow = _clock.UtcNow;
+
+            DateTimeOffset? absoluteExpiration = null;
+            if (cacheEntryOptions.AbsoluteExpirationRelativeToNow != null)
+            {
+                absoluteExpiration = utcNow + cacheEntryOptions.AbsoluteExpirationRelativeToNow;
+            }
+            else if (cacheEntryOptions.AbsoluteExpiration != null)
+            {
+                if (cacheEntryOptions.AbsoluteExpiration <= utcNow)
+                {
+                    throw new ArgumentOutOfRangeException(
+                        nameof(CacheEntryOptions.AbsoluteExpiration),
+                        cacheEntryOptions.AbsoluteExpiration.Value,
+                        "The absolute expiration value must be in the future.");
+                }
+
+                absoluteExpiration = cacheEntryOptions.AbsoluteExpiration;
+            }
+
+            var entry = new CacheEntry(
+                key,
+                value,
+                utcNow,
+                absoluteExpiration,
+                cacheEntryOptions,
+                _entryExpirationNotification);
+
             bool added = false;
 
             if (link != null)
             {
                 // Copy triggers and AbsoluteExpiration to the link.
                 // We do this regardless of it gets cached because the triggers are associated with the value we'll return.
-                if (entry.Context.Triggers != null)
+                if (entry.Options.Triggers != null)
                 {
-                    link.AddExpirationTriggers(entry.Context.Triggers);
+                    link.AddExpirationTriggers(entry.Options.Triggers);
                 }
-                if (entry.Context.AbsoluteExpiration.HasValue)
+                if (absoluteExpiration != null)
                 {
-                    link.SetAbsoluteExpiration(entry.Context.AbsoluteExpiration.Value);
+                    link.SetAbsoluteExpiration(absoluteExpiration.Value);
                 }
             }
 
@@ -95,7 +119,7 @@ namespace Microsoft.Framework.Caching.Memory
                     priorEntry.SetExpired(EvictionReason.Replaced);
                 }
 
-                if (!entry.CheckExpired(now))
+                if (!entry.CheckExpired(utcNow))
                 {
                     _entries[key] = entry;
                     entry.AttachTriggers();
@@ -120,7 +144,7 @@ namespace Microsoft.Framework.Caching.Memory
             return value;
         }
 
-        public bool TryGetValue([NotNull] string key, IEntryLink link, out object value)
+        public bool TryGetValue([NotNull] string key, out object value)
         {
             value = null;
             CacheEntry expiredEntry = null;
@@ -143,19 +167,6 @@ namespace Microsoft.Framework.Caching.Memory
                         entry.LastAccessed = _clock.UtcNow;
                         value = entry.Value;
                         found = true;
-
-                        if (link != null)
-                        {
-                            // Copy triggers and AbsoluteExpiration to the link
-                            if (entry.Context.Triggers != null)
-                            {
-                                link.AddExpirationTriggers(entry.Context.Triggers);
-                            }
-                            if (entry.Context.AbsoluteExpiration.HasValue)
-                            {
-                                link.SetAbsoluteExpiration(entry.Context.AbsoluteExpiration.Value);
-                            }
-                        }
                     }
                 }
             }
@@ -208,10 +219,10 @@ namespace Microsoft.Framework.Caching.Memory
             {
                 // Only remove it if someone hasn't modified it since our lookup
                 CacheEntry currentEntry;
-                if (_entries.TryGetValue(entry.Context.Key, out currentEntry)
+                if (_entries.TryGetValue(entry.Key, out currentEntry)
                     && object.ReferenceEquals(currentEntry, entry))
                 {
-                    _entries.Remove(entry.Context.Key);
+                    _entries.Remove(entry.Key);
                 }
             }
             finally
@@ -230,10 +241,10 @@ namespace Microsoft.Framework.Caching.Memory
                 {
                     // Only remove it if someone hasn't modified it since our lookup
                     CacheEntry currentEntry;
-                    if (_entries.TryGetValue(entry.Context.Key, out currentEntry)
+                    if (_entries.TryGetValue(entry.Key, out currentEntry)
                         && object.ReferenceEquals(currentEntry, entry))
                     {
-                        _entries.Remove(entry.Context.Key);
+                        _entries.Remove(entry.Key);
                     }
                 }
             }
@@ -311,7 +322,7 @@ namespace Microsoft.Framework.Caching.Memory
 
         /// Remove at least the given percentage (0.10 for 10%) of the total entries (or estimated memory?), according to the following policy:
         /// 1. Remove all expired items.
-        /// 2. Bucket by CachePreservationPriority.
+        /// 2. Bucket by CacheItemPriority.
         /// ?. Least recently used objects.
         /// ?. Items with the soonest absolute expiration.
         /// ?. Items with the soonest sliding expiration.
@@ -337,22 +348,22 @@ namespace Microsoft.Framework.Caching.Memory
                     }
                     else
                     {
-                        switch (entry.Context.Priority)
+                        switch (entry.Options.Priority)
                         {
-                            case CachePreservationPriority.Low:
+                            case CacheItemPriority.Low:
                                 lowPriEntries.Add(entry);
                                 break;
-                            case CachePreservationPriority.Normal:
+                            case CacheItemPriority.Normal:
                                 normalPriEntries.Add(entry);
                                 break;
-                            case CachePreservationPriority.High:
+                            case CacheItemPriority.High:
                                 highPriEntries.Add(entry);
                                 break;
-                            case CachePreservationPriority.NeverRemove:
+                            case CacheItemPriority.NeverRemove:
                                 neverRemovePriEntries.Add(entry);
                                 break;
                             default:
-                                System.Diagnostics.Debug.Assert(false, "Not implemented: " + entry.Context.Priority);
+                                System.Diagnostics.Debug.Assert(false, "Not implemented: " + entry.Options.Priority);
                                 break;
                         }
                     }
