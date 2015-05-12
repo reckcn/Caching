@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using Microsoft.Framework.Caching;
+using Microsoft.Framework.Caching.Memory;
 using Microsoft.Framework.Caching.Redis;
 
 namespace RedisCacheSample

@@ -3,21 +3,14 @@
 
 using System;
 using System.Collections.Generic;
-using Microsoft.Framework.Caching.Memory;
 
-namespace Microsoft.Framework.Caching
+namespace Microsoft.Framework.Caching.Memory
 {
     public class CacheEntryOptions
     {
         private DateTimeOffset? _absoluteExpiration;
         private TimeSpan? _absoluteExpirationRelativeToNow;
         private TimeSpan? _slidingExpiration;
-
-        public CacheEntryOptions()
-        {
-            Triggers = new List<IExpirationTrigger>();
-            PostEvictionCallbacks = new List<PostEvictionCallbackRegistration>();
-        }
 
         /// <summary>
         /// Gets or sets an absolute expiration date for the cache entry.
@@ -90,7 +83,6 @@ namespace Microsoft.Framework.Caching
                         value,
                         "The sliding expiration value must be positive.");
                 }
-
                 _slidingExpiration = value;
             }
         }
@@ -98,17 +90,18 @@ namespace Microsoft.Framework.Caching
         /// <summary>
         /// Gets or sets the events which are fired when the cache entry expires.
         /// </summary>
-        public IList<IExpirationTrigger> Triggers { get; set; }
+        public IList<IExpirationTrigger> Triggers { get; } = new List<IExpirationTrigger>();
 
         /// <summary>
         /// Gets or sets the callbacks will be fired after the cache entry is evicted from the cache.
         /// </summary>
-        public IList<PostEvictionCallbackRegistration> PostEvictionCallbacks { get; set; }
+        public IList<PostEvictionCallbackRegistration> PostEvictionCallbacks { get; }
+            = new List<PostEvictionCallbackRegistration>();
 
         /// <summary>
         /// Gets or sets the priority for keeping the cache entry in the cache during a
-        /// memory pressure triggered cleanup.
+        /// memory pressure triggered cleanup. The default is <see cref="CacheItemPriority.Normal"/>.
         /// </summary>
-        public CacheItemPriority Priority { get; set; }
+        public CacheItemPriority Priority { get; set; } = CacheItemPriority.Normal;
     }
 }

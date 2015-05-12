@@ -2,12 +2,11 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
-using Microsoft.Framework.Caching.Memory;
 using Microsoft.Framework.Internal;
 
-namespace Microsoft.Framework.Caching
+namespace Microsoft.Framework.Caching.Memory
 {
-    public static class CacheExtensions
+    public static class CacheEntryExtensions
     {
         /// <summary>
         /// Sets the priority for keeping the cache entry in the cache during a memory pressure triggered cleanup.
@@ -51,14 +50,7 @@ namespace Microsoft.Framework.Caching
         /// <param name="absolute"></param>
         public static CacheEntryOptions SetAbsoluteExpiration(this CacheEntryOptions options, DateTimeOffset absolute)
         {
-            if (options.AbsoluteExpiration == null)
-            {
-                options.AbsoluteExpiration = absolute;
-            }
-            else if (absolute < options.AbsoluteExpiration.Value)
-            {
-                options.AbsoluteExpiration = absolute;
-            }
+            options.AbsoluteExpiration = absolute;
             return options;
         }
 
@@ -72,6 +64,19 @@ namespace Microsoft.Framework.Caching
         {
             options.SlidingExpiration = offset;
             return options;
+        }
+
+        /// <summary>
+        /// The given callback will be fired after the cache entry is evicted from the cache.
+        /// </summary>
+        /// <param name="options"></param>
+        /// <param name="callback"></param>
+        /// <param name="state"></param>
+        public static CacheEntryOptions RegisterPostEvictionCallback(
+            this CacheEntryOptions options,
+            [NotNull] PostEvictionDelegate callback)
+        {
+            return options.RegisterPostEvictionCallback(callback, state: null);
         }
 
         /// <summary>

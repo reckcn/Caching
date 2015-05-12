@@ -32,6 +32,7 @@ namespace Microsoft.Framework.Caching.Memory
             Options = options;
             _notifyCacheOfExpiration = notifyCacheOfExpiration;
             _absoluteExpiration = absoluteExpiration;
+            PostEvictionCallbacks = options.PostEvictionCallbacks;
         }
 
         internal CacheEntryOptions Options { get; private set; }
@@ -45,6 +46,8 @@ namespace Microsoft.Framework.Caching.Memory
         internal EvictionReason EvictionReason { get; private set; }
 
         internal IList<IDisposable> TriggerRegistrations { get; set; }
+
+        internal IList<PostEvictionCallbackRegistration> PostEvictionCallbacks { get; set; }
 
         internal DateTimeOffset LastAccessed { get; set; }
 
@@ -65,7 +68,7 @@ namespace Microsoft.Framework.Caching.Memory
 
         private bool CheckForExpiredTime(DateTimeOffset now)
         {
-            if (_absoluteExpiration != null && _absoluteExpiration.Value <= now)
+            if (_absoluteExpiration.HasValue && _absoluteExpiration.Value <= now)
             {
                 SetExpired(EvictionReason.Expired);
                 return true;
@@ -147,8 +150,8 @@ namespace Microsoft.Framework.Caching.Memory
         // TODO: Ensure a thread safe way to prevent these from being invoked more than once;
         internal void InvokeEvictionCallbacks()
         {
-            var callbacks = Options.PostEvictionCallbacks;
-            Options.PostEvictionCallbacks = null;
+            var callbacks = PostEvictionCallbacks;
+            PostEvictionCallbacks = null;
             if (callbacks != null)
             {
 #if NET45 || DNX451 || DNXCORE50

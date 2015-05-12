@@ -69,11 +69,11 @@ namespace Microsoft.Framework.Caching.Memory
             var utcNow = _clock.UtcNow;
 
             DateTimeOffset? absoluteExpiration = null;
-            if (cacheEntryOptions.AbsoluteExpirationRelativeToNow != null)
+            if (cacheEntryOptions.AbsoluteExpirationRelativeToNow.HasValue)
             {
                 absoluteExpiration = utcNow + cacheEntryOptions.AbsoluteExpirationRelativeToNow;
             }
-            else if (cacheEntryOptions.AbsoluteExpiration != null)
+            else if (cacheEntryOptions.AbsoluteExpiration.HasValue)
             {
                 if (cacheEntryOptions.AbsoluteExpiration <= utcNow)
                 {
@@ -104,7 +104,7 @@ namespace Microsoft.Framework.Caching.Memory
                 {
                     link.AddExpirationTriggers(entry.Options.Triggers);
                 }
-                if (absoluteExpiration != null)
+                if (absoluteExpiration.HasValue)
                 {
                     link.SetAbsoluteExpiration(absoluteExpiration.Value);
                 }

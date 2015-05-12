@@ -5,6 +5,7 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Framework.Caching.Distributed;
+using Microsoft.Framework.Caching.Memory;
 using Microsoft.Framework.Caching.Memory.Infrastructure;
 using Microsoft.Framework.Internal;
 using Microsoft.Framework.OptionsModel;
