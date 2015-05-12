@@ -41,7 +41,7 @@ namespace MemoryCacheSample
         private CacheEntryOptions GetCacheEntryOptions()
         {
             return new CacheEntryOptions()
-                .SetAbsoluteExpiration(DateTimeOffset.Now + TimeSpan.FromSeconds(7))
+                .SetAbsoluteExpiration(TimeSpan.FromSeconds(7))
                 .SetSlidingExpiration(TimeSpan.FromSeconds(3))
                 .RegisterPostEvictionCallback(AfterEvicted, state: null);
         }

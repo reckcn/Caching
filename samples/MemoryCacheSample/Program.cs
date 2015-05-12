@@ -51,7 +51,7 @@ namespace MemoryCacheSample
             result = cache.Set(
                 key,
                 new object(),
-                new CacheEntryOptions().SetAbsoluteExpiration(new DateTime(2014, 12, 31)));
+                new CacheEntryOptions().SetAbsoluteExpiration(DateTimeOffset.UtcNow.AddDays(2)));
 
             // Automatically remove if not accessed in the given time
             // Automatically remove at a certain time (if it lives that long)
@@ -60,7 +60,7 @@ namespace MemoryCacheSample
                 new object(),
                 new CacheEntryOptions()
                 .SetSlidingExpiration(TimeSpan.FromMinutes(5))
-                .SetAbsoluteExpiration(new DateTime(2014, 12, 31)));
+                .SetAbsoluteExpiration(DateTimeOffset.UtcNow.AddDays(2)));
 
             // Callback when evicted
             result = cache.Set(
