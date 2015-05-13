@@ -12,12 +12,6 @@ namespace Microsoft.Framework.Caching.Memory
         private TimeSpan? _absoluteExpirationRelativeToNow;
         private TimeSpan? _slidingExpiration;
 
-        public CacheEntryOptions()
-        {
-            Triggers = new List<IExpirationTrigger>();
-            PostEvictionCallbacks = new List<PostEvictionCallbackRegistration>();
-        }
-
         /// <summary>
         /// Gets or sets an absolute expiration date for the cache entry.
         /// </summary>
@@ -96,12 +90,13 @@ namespace Microsoft.Framework.Caching.Memory
         /// <summary>
         /// Gets or sets the events which are fired when the cache entry expires.
         /// </summary>
-        public IList<IExpirationTrigger> Triggers { get; }
+        public IList<IExpirationTrigger> Triggers { get; } = new List<IExpirationTrigger>();
 
         /// <summary>
         /// Gets or sets the callbacks will be fired after the cache entry is evicted from the cache.
         /// </summary>
         public IList<PostEvictionCallbackRegistration> PostEvictionCallbacks { get; }
+            = new List<PostEvictionCallbackRegistration>();
 
         /// <summary>
         /// Gets or sets the priority for keeping the cache entry in the cache during a

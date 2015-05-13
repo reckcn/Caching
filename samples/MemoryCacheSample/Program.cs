@@ -63,12 +63,13 @@ namespace MemoryCacheSample
                 .SetAbsoluteExpiration(DateTimeOffset.UtcNow.AddDays(2)));
 
             // Callback when evicted
-            result = cache.Set(
-                key,
-                new object(),
-                new CacheEntryOptions()
-                .RegisterPostEvictionCallback((echoKey, value, reason, substate) =>
-                    Console.WriteLine(echoKey + ": '" + value + "' was evicted due to " + reason), state: null));
+            var options = new CacheEntryOptions()
+                .RegisterPostEvictionCallback(
+                (echoKey, value, reason, substate) =>
+                {
+                    Console.WriteLine(echoKey + ": '" + value + "' was evicted due to " + reason);
+                });
+            result = cache.Set(key, new object(), options);
 
             // Remove on trigger
             var cts = new CancellationTokenSource();

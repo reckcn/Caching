@@ -74,6 +74,19 @@ namespace Microsoft.Framework.Caching.Memory
         /// <param name="state"></param>
         public static CacheEntryOptions RegisterPostEvictionCallback(
             this CacheEntryOptions options,
+            [NotNull] PostEvictionDelegate callback)
+        {
+            return options.RegisterPostEvictionCallback(callback, state: null);
+        }
+
+        /// <summary>
+        /// The given callback will be fired after the cache entry is evicted from the cache.
+        /// </summary>
+        /// <param name="options"></param>
+        /// <param name="callback"></param>
+        /// <param name="state"></param>
+        public static CacheEntryOptions RegisterPostEvictionCallback(
+            this CacheEntryOptions options,
             [NotNull] PostEvictionDelegate callback,
             object state)
         {
