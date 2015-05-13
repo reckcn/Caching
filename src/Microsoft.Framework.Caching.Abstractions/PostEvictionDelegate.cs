@@ -1,9 +1,7 @@
 ﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
-using Microsoft.Framework.Caching.Memory;
-
-namespace Microsoft.Framework.Caching
+namespace Microsoft.Framework.Caching.Memory
 {
     /// <summary>
     /// Signature of the callback which gets called when a cache entry expires.

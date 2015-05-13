@@ -48,7 +48,8 @@ namespace Microsoft.Framework.Caching.Memory
             var key = "myKey";
             var value = new object();
 
-            var result = cache.Set(key, value, new CacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(1)));
+            var result = cache.Set(key, value, new CacheEntryOptions()
+                .SetAbsoluteExpiration(clock.UtcNow + TimeSpan.FromMinutes(1)));
             Assert.Same(value, result);
 
             var found = cache.TryGetValue(key, out result);
@@ -72,7 +73,7 @@ namespace Microsoft.Framework.Caching.Memory
             var callbackInvoked = new ManualResetEvent(false);
 
             var options = new CacheEntryOptions()
-                .SetAbsoluteExpiration(TimeSpan.FromMinutes(1))
+                .SetAbsoluteExpiration(clock.UtcNow + TimeSpan.FromMinutes(1))
                 .RegisterPostEvictionCallback((subkey, subValue, reason, state) =>
                 {
                     // TODO: Verify params

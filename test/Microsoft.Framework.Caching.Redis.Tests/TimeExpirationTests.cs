@@ -6,6 +6,7 @@ using System.Globalization;
 using System.Threading;
 using Microsoft.AspNet.Testing;
 using Microsoft.Framework.Caching.Distributed;
+using Microsoft.Framework.Caching.Memory;
 using Xunit;
 
 namespace Microsoft.Framework.Caching.Redis
