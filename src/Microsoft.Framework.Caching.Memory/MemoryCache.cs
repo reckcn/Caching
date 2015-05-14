@@ -62,6 +62,13 @@ namespace Microsoft.Framework.Caching.Memory
             get { return _entries.Count; }
         }
 
+        public IEntryLink CreateLinkingScope()
+        {
+            var newScope = new EntryLinkScope();
+            EntryLinkHelpers.CurrentScope = newScope;
+            return newScope.EntryLink;
+        }
+
         public object Set([NotNull] string key, object value, IEntryLink link, CacheEntryOptions cacheEntryOptions)
         {
             CheckDisposed();

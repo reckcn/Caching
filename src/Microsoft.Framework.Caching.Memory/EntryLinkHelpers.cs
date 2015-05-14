@@ -14,66 +14,39 @@ namespace Microsoft.Framework.Caching.Memory
     public static class EntryLinkHelpers
     {
 #if DNXCORE50
-        private static readonly AsyncLocal<IEntryLink> _contextLink = new AsyncLocal<IEntryLink>();
-
-        public static IEntryLink ContextLink
-        {
-            get { return _contextLink.Value; }
-            set { _contextLink.Value = value; }
-        }
-#elif NET45 || DNX451
-        private const string ContextLinkDataName = "klr.host.EntryLinkHelpers.ContextLink";
-
-        public static IEntryLink ContextLink
+        private static readonly AsyncLocal<EntryLinkScope> _entryLinkScope = new AsyncLocal<EntryLinkScope>();
+        public static EntryLinkScope CurrentScope
         {
             get
             {
-                var handle = CallContext.LogicalGetData(ContextLinkDataName) as ObjectHandle;
-
-                if (handle == null)
-                {
-                    return null;
-                }
-
-                return handle.Unwrap() as IEntryLink;
+                return _entryLinkScope.Value;
             }
             set
             {
-                CallContext.LogicalSetData(ContextLinkDataName, new ObjectHandle(value));
+                _entryLinkScope.Value = value;
+            }
+        }
+#elif NET45 || DNX451
+        private static readonly string _entryLinkScopeKey = "klr.host.EntryLinkHelpers.ContextLink";
+
+        public static EntryLinkScope CurrentScope
+        {
+            get
+            {
+                var objectHandle = CallContext.LogicalGetData(_entryLinkScopeKey) as ObjectHandle;
+                return objectHandle != null ? objectHandle.Unwrap() as EntryLinkScope : null;
+            }
+            set
+            {
+                CallContext.LogicalSetData(_entryLinkScopeKey, new ObjectHandle(value));
             }
         }
 #else
-        public static IEntryLink ContextLink
+        public static EntryLinkScope CurrentScope
         {
             get { return null; }
             set { throw new NotImplementedException(); }
         }
 #endif
-        public static IDisposable FlowContext(this IEntryLink link)
-        {
-            var priorLink = ContextLink;
-            ContextLink = link;
-            return new LinkContextReverter(priorLink);
-        }
-
-        private class LinkContextReverter : IDisposable
-        {
-            private readonly IEntryLink _priorLink;
-            private bool _disposed;
-
-            public LinkContextReverter(IEntryLink priorLink)
-            {
-                _priorLink = priorLink;
-            }
-
-            public void Dispose()
-            {
-                if (!_disposed)
-                {
-                    _disposed = true;
-                    ContextLink = _priorLink;
-                }
-            }
-        }
     }
 }
