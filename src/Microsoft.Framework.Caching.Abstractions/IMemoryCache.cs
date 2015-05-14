@@ -14,11 +14,9 @@ namespace Microsoft.Framework.Caching.Memory
         /// </summary>
         /// <param name="key">A string identifying the entry. This is case sensitive.</param>
         /// <param name="value">The value to be cached.</param>
-        /// <param name="link">An entry link used to collect trigger and expiration information from this entry
-        /// for use in a parent entry.</param>
         /// <param name="options">The <see cref="CacheEntryOptions"/>.</param>
         /// <returns>The object that was cached.</returns>
-        object Set(string key, object value, IEntryLink link, CacheEntryOptions options);
+        object Set(string key, object value, CacheEntryOptions options);
 
         /// <summary>
         /// Gets the item associated with this key if present.

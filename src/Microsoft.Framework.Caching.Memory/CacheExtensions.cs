@@ -38,7 +38,7 @@ namespace Microsoft.Framework.Caching.Memory
 
         public static object Set(this IMemoryCache cache, string key, object value, CacheEntryOptions options)
         {
-            return cache.Set(key, value, EntryLinkHelpers.ContextLink, options);
+            return cache.Set(key, value, options);
         }
 
         public static TItem Set<TItem>(this IMemoryCache cache, string key, TItem value)

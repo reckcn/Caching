@@ -67,7 +67,7 @@ namespace Microsoft.Framework.Caching.Memory
             return EntryLinkHelpers.CreateLinkingScope();
         }
 
-        public object Set([NotNull] string key, object value, IEntryLink link, CacheEntryOptions cacheEntryOptions)
+        public object Set([NotNull] string key, object value, CacheEntryOptions cacheEntryOptions)
         {
             CheckDisposed();
             CacheEntry priorEntry = null;
@@ -101,6 +101,7 @@ namespace Microsoft.Framework.Caching.Memory
 
             bool added = false;
 
+            var link = EntryLinkHelpers.ContextLink;
             if (link != null)
             {
                 // Copy triggers and AbsoluteExpiration to the link.
